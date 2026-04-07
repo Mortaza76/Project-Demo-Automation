@@ -1,4 +1,4 @@
-# BellMedEx Demo Workflow
+# Demo Workflow
 
 A VS Code runnable backend prototype for BellMedEx that automates demo scheduling from lead intake to meeting confirmation.
 
