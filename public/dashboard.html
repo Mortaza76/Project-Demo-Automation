@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BellMedEx Demo Dashboard</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; background: #fafafa; color: #111; }
+      .wrap { max-width: 1100px; margin: 0 auto; }
+      h1 { margin-bottom: 8px; }
+      .muted { color: #666; margin-top: 0; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .card { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px; }
+      .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+      button { padding: 8px 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+      button:hover { background: #f3f3f3; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; border-bottom: 1px solid #efefef; padding: 8px; vertical-align: top; }
+      th { background: #f9f9f9; }
+      .status { font-weight: 700; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      .link { color: #0a66c2; text-decoration: none; }
+      .link:hover { text-decoration: underline; }
+      pre { margin: 0; white-space: pre-wrap; background: #f7f7f7; border: 1px solid #eee; padding: 10px; border-radius: 6px; max-height: 320px; overflow: auto; }
+      @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>BellMedEx Workflow Dashboard</h1>
+      <p class="muted">Monitor lead states and demo the full booking pipeline.</p>
+
+      <div class="toolbar">
+        <button id="refreshBtn">Refresh Leads</button>
+        <a class="link" href="/" target="_blank" rel="noreferrer">Open Intake Form</a>
+        <span id="lastSync" class="muted"></span>
+      </div>
+
+      <div class="row">
+        <div class="card">
+          <h3>Leads</h3>
+          <table id="leadsTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3>Lead Details</h3>
+          <div id="detailsEmpty" class="muted">Select a lead from the table.</div>
+          <div id="details" style="display:none;">
+            <p><strong>Name:</strong> <span id="dName"></span></p>
+            <p><strong>Email:</strong> <span id="dEmail"></span></p>
+            <p><strong>Organization:</strong> <span id="dOrg"></span></p>
+            <p><strong>Status:</strong> <span id="dStatus" class="status"></span></p>
+            <p><strong>Requested Slot:</strong> <span id="dSlot"></span></p>
+            <p><strong>Meet Link:</strong> <a class="link" id="dMeet" target="_blank" rel="noreferrer"></a></p>
+            <p><strong>Response Link:</strong> <a class="link" id="dResponse" target="_blank" rel="noreferrer"></a></p>
+            <h4>Transitions</h4>
+            <pre id="dTransitions"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const leadsTbody = document.querySelector('#leadsTable tbody');
+      const details = document.getElementById('details');
+      const detailsEmpty = document.getElementById('detailsEmpty');
+      const dName = document.getElementById('dName');
+      const dEmail = document.getElementById('dEmail');
+      const dOrg = document.getElementById('dOrg');
+      const dStatus = document.getElementById('dStatus');
+      const dSlot = document.getElementById('dSlot');
+      const dMeet = document.getElementById('dMeet');
+      const dResponse = document.getElementById('dResponse');
+      const dTransitions = document.getElementById('dTransitions');
+      const lastSync = document.getElementById('lastSync');
+      let selectedLeadId = null;
+
+      const STATUS_LABELS = {
+        NEW: 'NEW',
+        EMAIL_SENT: 'EMAIL_SENT (Invite sent)',
+        SLOT_RECEIVED: 'SLOT_RECEIVED (Client chose slot)',
+        RESCHEDULE_REQUESTED: 'RESCHEDULE_REQUESTED (Conflict email sent)',
+        EVENT_CREATED: 'EVENT_CREATED (Calendar/Meet created)',
+        CONFIRMED: 'CONFIRMED (Final email sent)',
+        FAILED: 'FAILED',
+      };
+
+      function formatTime(iso) {
+        if (!iso) return '-';
+        return new Date(iso).toLocaleString();
+      }
+
+      async function fetchLeads() {
+        const res = await fetch('/api/leads');
+        const leads = await res.json();
+        renderLeads(leads);
+        lastSync.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
+        if (selectedLeadId) {
+          const stillExists = leads.some((lead) => String(lead.id) === String(selectedLeadId));
+          if (stillExists) {
+            loadLead(selectedLeadId);
+          } else {
+            selectedLeadId = null;
+            details.style.display = 'none';
+            detailsEmpty.style.display = 'block';
+          }
+        }
+      }
+
+      function renderLeads(leads) {
+        leadsTbody.innerHTML = '';
+        for (const lead of leads) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${lead.id}</td>
+            <td>${lead.full_name}</td>
+            <td><span class="status">${STATUS_LABELS[lead.status] || lead.status}</span></td>
+            <td class="mono">${formatTime(lead.updated_at)}</td>
+            <td class="mono">
+              <a class="link" href="#" data-id="${lead.id}" data-action="view">view</a> |
+              <a class="link" href="/respond/${lead.response_token}" target="_blank" rel="noreferrer">response page</a>
+            </td>
+          `;
+          leadsTbody.appendChild(tr);
+        }
+      }
+
+      async function loadLead(id) {
+        const res = await fetch(`/api/leads/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const { lead, transitions } = data;
+        selectedLeadId = String(id);
+        details.style.display = 'block';
+        detailsEmpty.style.display = 'none';
+        dName.textContent = lead.full_name;
+        dEmail.textContent = lead.email;
+        dOrg.textContent = lead.organization;
+        dStatus.textContent = STATUS_LABELS[lead.status] || lead.status;
+        dSlot.textContent = lead.requested_date && lead.requested_time
+          ? `${lead.requested_date} ${lead.requested_time} (${lead.timezone})`
+          : 'Not selected yet';
+        dMeet.textContent = lead.google_meet_link || 'Not available yet';
+        dMeet.href = lead.google_meet_link || '#';
+        const responseUrl = `${location.origin}/respond/${lead.response_token}`;
+        dResponse.textContent = responseUrl;
+        dResponse.href = responseUrl;
+        dTransitions.textContent = JSON.stringify(transitions, null, 2);
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', fetchLeads);
+      leadsTbody.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLAnchorElement)) return;
+        if (target.dataset.action === 'view') {
+          e.preventDefault();
+          loadLead(target.dataset.id);
+        }
+      });
+
+      fetchLeads();
+      setInterval(fetchLeads, 4000);
+    </script>
+  </body>
+</html>

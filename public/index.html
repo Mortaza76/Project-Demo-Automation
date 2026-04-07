@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>BellMedEx Demo Intake</title>
+  </head>
+  <body style="font-family:sans-serif;max-width:650px;margin:2rem auto;">
+    <h2>BellMedEx Demo Request</h2>
+    <p><a href="/dashboard.html" target="_blank" rel="noreferrer">Open Dashboard</a></p>
+    <form id="leadForm">
+      <label>Full name</label><br/>
+      <input name="fullName" required /><br/><br/>
+
+      <label>Email</label><br/>
+      <input name="email" type="email" required /><br/><br/>
+
+      <label>Organization</label><br/>
+      <input name="organization" required /><br/><br/>
+
+      <label>Products</label><br/>
+      <label><input type="checkbox" name="products" value="CRM"/> CRM</label><br/>
+      <label><input type="checkbox" name="products" value="MediFusion"/> MediFusion</label><br/>
+      <label><input type="checkbox" name="products" value="DocuHub"/> DocuHub</label><br/>
+      <label><input type="checkbox" name="products" value="SkyUp"/> SkyUp</label><br/><br/>
+
+      <button type="submit">Submit</button>
+    </form>
+
+    <pre id="result" style="background:#f3f3f3;padding:1rem;margin-top:1rem;"></pre>
+
+    <script>
+      const form = document.getElementById('leadForm');
+      const result = document.getElementById('result');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const payload = {
+          fullName: data.get('fullName'),
+          email: data.get('email'),
+          organization: data.get('organization'),
+          products: data.getAll('products'),
+        };
+        const res = await fetch('/api/intake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        result.textContent = JSON.stringify(json, null, 2);
+      });
+    </script>
+  </body>
+</html>
