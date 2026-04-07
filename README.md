@@ -89,14 +89,6 @@ Configure `.env` using `.env.example`:
 
 If SMTP or Google env vars are empty, the corresponding integration runs in simulation mode.
 
-## URLs
-
-- Intake form: [http://localhost:3000](http://localhost:3000)
-- Dashboard: [http://localhost:3000/dashboard.html](http://localhost:3000/dashboard.html)
-- Health: [http://localhost:3000/health](http://localhost:3000/health)
-- Leads list: [http://localhost:3000/api/leads](http://localhost:3000/api/leads)
-- Lead details: `http://localhost:3000/api/leads/:id`
-- Client response page: `http://localhost:3000/respond/:token`
 
 ## API endpoints
 
