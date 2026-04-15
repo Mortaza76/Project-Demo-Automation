@@ -122,17 +122,6 @@ When Google credentials are configured:
 - provides details panel with transitions and links
 - reflects conflict/reschedule states live
 
-## Security before public push
 
-- Never commit `.env` to GitHub.
-- Keep secrets only in local environment or a secret manager.
-- Rotate credentials if they were ever exposed.
-- Use `.env.example` with placeholders only.
 
-Recommended check before push:
-
-```bash
-git status
-git diff -- .env
-```
 
